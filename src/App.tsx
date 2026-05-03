@@ -24,6 +24,49 @@ import {
 import { AnalyticsView } from './components/AnalyticsView';
 import { MonitoringASN } from './components/MonitoringASN';
 
+const getDirectImageUrl = (url: string | undefined | null) => {
+  if (!url) return '';
+  
+  // Extract File ID from various Google Drive link formats
+  let fileId = '';
+  if (url.includes('/file/d/')) {
+    fileId = url.split('/file/d/')[1].split('/')[0];
+  } else if (url.includes('id=')) {
+    fileId = (url.split('id=')[1] || "").split('&')[0];
+  } else if (url.includes('drive.google.com') && !url.includes('uc?') && !url.includes('id=')) {
+    const parts = url.split('/');
+    fileId = parts[parts.length - 1] === 'view' ? parts[parts.length - 2] : parts[parts.length - 1];
+  }
+
+  if (fileId) {
+    return `https://drive.google.com/thumbnail?id=${fileId}&sz=w800`;
+  }
+  
+  return url;
+};
+
+const ProfileImage = ({ src, alt, className, fallbackIcon: FallbackIcon }: any) => {
+  const [error, setError] = useState(false);
+  const directUrl = getDirectImageUrl(src);
+
+  if (!src || error) {
+    return <FallbackIcon className="w-4 h-4 text-blue-400" />;
+  }
+
+  return (
+    <img 
+      src={directUrl} 
+      alt={alt || ""} 
+      className={className} 
+      referrerPolicy="no-referrer" 
+      onError={() => {
+        console.warn("Image Load Failed:", directUrl);
+        setError(true);
+      }}
+    />
+  );
+};
+
 const SECTIONS = [
   { id: 'identitas', title: 'Identitas Utama', icon: User },
   { id: 'keluarga', title: 'Data Keluarga', icon: Users },
@@ -1159,11 +1202,11 @@ export default function App() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center overflow-hidden border border-gray-100 shadow-sm">
-                          {p.Image ? (
-                            <img src={p.Image} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <User className="w-4 h-4 text-blue-400" />
-                          )}
+                          <ProfileImage 
+                            src={p.Image} 
+                            fallbackIcon={User} 
+                            className="w-full h-full object-cover" 
+                          />
                         </div>
                         <div className="flex flex-col">
                           <div className="flex items-center gap-2">
@@ -1345,11 +1388,12 @@ export default function App() {
           <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10">
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-blue-200 overflow-hidden">
-                {data.Image ? (
-                  <img src={data.Image} alt={data.Nama} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  data.Nama?.[0] || 'P'
-                )}
+                <ProfileImage 
+                  src={data.Image} 
+                  alt={data.Nama}
+                  fallbackIcon={() => <div className="text-white text-2xl">{data.Nama?.[0] || 'P'}</div>}
+                  className="w-full h-full object-cover" 
+                />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">{data.Nama}</h2>
@@ -1458,14 +1502,18 @@ export default function App() {
               // If it's a typical Drive view URL, we might need an iframe or a direct image display
               fileUrl.includes('drive.google.com') ? (
                 <iframe 
-                  src={fileUrl.replace('/view', '/preview')} 
+                  src={
+                    fileUrl.includes('uc?') 
+                      ? "https://drive.google.com/file/d/" + (fileUrl.split('id=')[1] || "").split('&')[0] + "/preview"
+                      : fileUrl.replace('/view', '/preview')
+                  } 
                   className="w-full h-full border-0"
                   title="Document Preview"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center p-8">
                   {isImage ? (
-                    <img src={fileUrl} alt="Preview" className="max-w-full max-h-full object-contain shadow-lg rounded-lg" referrerPolicy="no-referrer" />
+                    <img src={getDirectImageUrl(fileUrl)} alt="Preview" className="max-w-full max-h-full object-contain shadow-lg rounded-lg" referrerPolicy="no-referrer" />
                   ) : (
                     <iframe src={fileUrl} className="w-full h-full border-0" title="Document Preview" />
                   )}
@@ -1521,11 +1569,12 @@ export default function App() {
             <div className="flex items-center gap-4 mb-8 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
                <div className="relative group">
                  <div className="w-24 h-24 rounded-2xl bg-white border-2 border-dashed border-blue-200 flex items-center justify-center overflow-hidden shadow-inner">
-                    {previewUrl || watch('Image') ? (
-                      <img src={previewUrl || watch('Image')} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <Camera className="w-8 h-8 text-blue-200" />
-                    )}
+                    <ProfileImage 
+                      src={previewUrl || watch('Image')} 
+                      alt="Preview"
+                      fallbackIcon={() => <Camera className="w-8 h-8 text-blue-200" />}
+                      className="w-full h-full object-cover" 
+                    />
                  </div>
                  <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-2 rounded-xl shadow-lg cursor-pointer hover:bg-blue-700 transition-all scale-90">
                    <Upload className="w-4 h-4" />

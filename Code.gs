@@ -64,7 +64,7 @@ function doPost(e) {
         file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         
         // Simpan URL hasil upload ke dalam payload agar nantinya tersimpan ke Sheet
-        payload[payload.fileFieldName] = "https://drive.google.com/uc?export=view&id=" + file.getId();
+        payload[payload.fileFieldName] = "https://drive.google.com/file/d/" + file.getId() + "/view";
       } catch (fErr) {
         console.error("File Upload Failed: " + fErr.toString());
         // Lanjutkan tanpa mematikan proses, atau throw jika wajib ada file
@@ -84,7 +84,7 @@ function doPost(e) {
         
         return ContentService.createTextOutput(JSON.stringify({ 
           "status": "success", 
-          "url": "https://drive.google.com/uc?export=view&id=" + file.getId()
+          "url": "https://drive.google.com/file/d/" + file.getId() + "/view"
         })).setMimeType(ContentService.MimeType.JSON);
       } catch (fErr) {
         return ContentService.createTextOutput(JSON.stringify({ "status": "error", "message": "Drive Error: " + fErr.toString() })).setMimeType(ContentService.MimeType.JSON);
