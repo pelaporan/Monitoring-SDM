@@ -67,6 +67,24 @@ const ProfileImage = ({ src, alt, className, fallbackIcon: FallbackIcon }: any) 
   );
 };
 
+// Helper to get the correct API URL regardless of environment
+const getApiUrl = (sheetName?: string) => {
+  const isAIStudio = window.location.hostname.includes('run.app') || window.location.hostname.includes('localhost');
+  const useProxy = isAIStudio && !window.location.hostname.includes('netlify');
+  
+  if (useProxy) {
+    let url = `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}`;
+    if (sheetName) url += `&sheet=${sheetName}`;
+    return url;
+  }
+  
+  if (sheetName) {
+    return `${Constants.APPS_SCRIPT_URL}${Constants.APPS_SCRIPT_URL.includes('?') ? '&' : '?'}sheet=${sheetName}`;
+  }
+  
+  return Constants.APPS_SCRIPT_URL;
+};
+
 const SECTIONS = [
   { id: 'identitas', title: 'Identitas Utama', icon: User },
   { id: 'keluarga', title: 'Data Keluarga', icon: Users },
@@ -162,9 +180,7 @@ export default function App() {
     setSubmitStatus('idle');
     setGasError(null);
     try {
-      const url = Constants.APPS_SCRIPT_URL 
-        ? `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}&sheet=MASTER_PEGAWAI`
-        : '/api/pegawai';
+      const url = getApiUrl('MASTER_PEGAWAI');
       
       const response = await fetch(url);
       const result = await response.json();
@@ -194,7 +210,7 @@ export default function App() {
     if (!Constants.APPS_SCRIPT_URL) return;
     setIsLoading(true);
     try {
-      const url = `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}&sheet=DATA_DOKUMEN`;
+      const url = getApiUrl('DATA_DOKUMEN');
       const response = await fetch(url);
       const result = await response.json();
       if (result.status === 'success' || result.success) {
@@ -314,9 +330,8 @@ export default function App() {
         mimeType = selectedFile.type;
       }
 
-      const url = Constants.APPS_SCRIPT_URL 
-        ? `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}`
-        : '/api/pegawai';
+      // Auto-detect environment: use local proxy if on AIS, otherwise use direct GAS URL
+      const url = getApiUrl();
       
       const payload = {
         ...data,
@@ -372,9 +387,7 @@ export default function App() {
   const handleDelete = async (id: string) => {
     setIsLoading(true);
     try {
-      const url = Constants.APPS_SCRIPT_URL 
-        ? `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}`
-        : '/api/pegawai';
+      const url = getApiUrl();
 
       const response = await fetch(url, {
         method: 'POST',
@@ -446,9 +459,7 @@ export default function App() {
         else if (diffDays <= 90) status = 'WARNING';
       }
 
-      const url = Constants.APPS_SCRIPT_URL 
-        ? `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}`
-        : '/api/dokumen';
+      const url = getApiUrl();
       
       // Clean up id_dokumen if it's the placeholder
       const idDokumen = data.id_dokumen === "(Otomatis)" ? "" : data.id_dokumen;
@@ -499,9 +510,7 @@ export default function App() {
   const handleDeleteDok = async (id: string) => {
     setIsLoading(true);
     try {
-      const url = Constants.APPS_SCRIPT_URL 
-        ? `/api/gsheet-proxy?url=${encodeURIComponent(Constants.APPS_SCRIPT_URL)}`
-        : '/api/dokumen';
+      const url = getApiUrl();
 
       const response = await fetch(url, {
         method: 'POST',
