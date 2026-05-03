@@ -1,0 +1,6 @@
+{
+  "name": "RSUD SDM Monitor",
+  "description": "Sistem Monitoring Sumber Daya Manusia (SDM) untuk RSUD dengan integrasi Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
