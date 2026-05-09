@@ -90,13 +90,34 @@ async function startServer() {
     }
 
     try {
+      console.log("Proxy POSTing to GAS:", scriptUrl);
       const response = await fetch(scriptUrl, {
         method: "POST",
         body: JSON.stringify(req.body),
         headers: { "Content-Type": "application/json" }
       });
-      const data = await response.json();
-      res.json({ success: true, ...data });
+      
+      const contentType = response.headers.get("content-type") || "";
+      const text = await response.text();
+      
+      if (contentType.includes("application/json") || (text.trim().startsWith("{") && text.trim().endsWith("}"))) {
+        try {
+          const data = JSON.parse(text);
+          res.json({ success: true, ...data });
+        } catch (e) {
+          res.status(500).json({ 
+            success: false, 
+            message: "Gagal memproses JSON dari Google Apps Script.",
+            debug: text.substring(0, 100)
+          });
+        }
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: "Format data salah (Bukan JSON).",
+          debug: text.substring(0, 100)
+        });
+      }
     } catch (error) {
       console.error("Proxy POST error:", error);
       res.status(500).json({ success: false, message: "Failed to post to Google Apps Script." });

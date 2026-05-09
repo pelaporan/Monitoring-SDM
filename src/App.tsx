@@ -141,6 +141,10 @@ export default function App() {
   const [dokumenPageSize, setDokumenPageSize] = useState<number | 'all'>(25);
   const [currentDokumenPage, setCurrentDokumenPage] = useState(1);
   const [filterStatusPegawai, setFilterStatusPegawai] = useState<string>('');
+  const [filterKelompokJabatan, setFilterKelompokJabatan] = useState<string>('');
+  const [filterJenjangPendidikan, setFilterJenjangPendidikan] = useState<string>('');
+  const [filterJenisKelamin, setFilterJenisKelamin] = useState<string>('');
+  const [filterAgama, setFilterAgama] = useState<string>('');
   const [filterJenisDokumen, setFilterJenisDokumen] = useState<string>('');
   const [filterStatusDokumen, setFilterStatusDokumen] = useState<string>('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'pegawai' | 'dokumen', id: string, name?: string } | null>(null);
@@ -175,6 +179,76 @@ export default function App() {
     }
   };
 
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+  
+  const RippleLoader = () => (
+    <div className="relative flex items-center justify-center w-20 h-20">
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          initial={{ scale: 0.8, opacity: 0.5 }}
+          animate={{ scale: 2.2, opacity: 0 }}
+          transition={{
+            repeat: Infinity,
+            duration: 2.5,
+            delay: i * 0.8,
+            ease: "easeOut"
+          }}
+          className="absolute w-full h-full border border-blue-400 rounded-full"
+        />
+      ))}
+      <motion.div 
+        animate={{ scale: [1, 1.1, 1] }}
+        transition={{ repeat: Infinity, duration: 2 }}
+        className="relative z-10 w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-200"
+      >
+        <User className="w-5 h-5 text-white" />
+      </motion.div>
+    </div>
+  );
+
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (isLoading) {
+      timeout = setTimeout(() => setIsSlowLoading(true), 3000);
+    } else {
+      setIsSlowLoading(false);
+    }
+    return () => clearTimeout(timeout);
+  }, [isLoading]);
+
+  const LoadingOverlay = () => (
+    <AnimatePresence>
+      {isLoading && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-900/20"
+        >
+          <RippleLoader />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const handleResponse = async (response: Response) => {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return await response.json();
+    }
+    const text = await response.text();
+    // Try parsing text as JSON if it looks like JSON but header is missing
+    if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        // Fall through to error
+      }
+    }
+    throw new Error(text || `Server returned ${response.status} ${response.statusText}`);
+  };
+
   const fetchPegawai = async () => {
     setIsLoading(true);
     setSubmitStatus('idle');
@@ -183,7 +257,7 @@ export default function App() {
       const url = getApiUrl('MASTER_PEGAWAI');
       
       const response = await fetch(url);
-      const result = await response.json();
+      const result = await handleResponse(response);
       
       if (Constants.APPS_SCRIPT_URL) {
         if (result.status === 'success' || result.success) {
@@ -199,7 +273,7 @@ export default function App() {
       }
     } catch (error) {
       console.error('Fetch Error:', error);
-      setGasError('Gagal menghubungi proxy server.');
+      setGasError(error instanceof Error ? error.message : 'Gagal menghubungi proxy server.');
       setSubmitStatus('error');
     } finally {
       setIsLoading(false);
@@ -212,7 +286,7 @@ export default function App() {
     try {
       const url = getApiUrl('DATA_DOKUMEN');
       const response = await fetch(url);
-      const result = await response.json();
+      const result = await handleResponse(response);
       if (result.status === 'success' || result.success) {
         // Enforce client-side calculation of Status and Sisa Hari for data integrity
         const enrichedData = (result.data || []).map((doc: any) => {
@@ -285,6 +359,47 @@ export default function App() {
     }
   });
 
+  const watchedTanggalLahir = watch('Tanggal_Lahir');
+  const watchedBUP = watch('Rentang_BUP');
+
+  useEffect(() => {
+    if (watchedTanggalLahir && watchedBUP) {
+      // Ekstrak angka dari BUP (misal: "58 Tahun" -> 58)
+      // Konversi ke string dulu untuk jaga-jaga jika input terbaca sebagai number
+      const bupValue = String(watchedBUP);
+      const bupAge = parseInt(bupValue.replace(/\D/g, ''), 10);
+      
+      if (!isNaN(bupAge)) {
+        const birthDate = new Date(watchedTanggalLahir);
+        if (!isNaN(birthDate.getTime())) {
+          // 1. Hitung tahun pensiun
+          const retirementYear = birthDate.getFullYear() + bupAge;
+          const retirementMonth = birthDate.getMonth();
+          
+          // 2. Tanggal 1 pada bulan berikutnya
+          // Bulan di JS Date: 0 = Januari, 11 = Desember
+          // Jika lahir bulan Juli (6), pensiun bulan Agustus (7) tanggal 1
+          let targetMonth = retirementMonth + 1;
+          let targetYear = retirementYear;
+          
+          if (targetMonth > 11) {
+            targetMonth = 0;
+            targetYear += 1;
+          }
+          
+          const resultDate = new Date(targetYear, targetMonth, 1);
+          
+          // Format as YYYY-MM-DD for input[type="date"]
+          const yyyy = resultDate.getFullYear();
+          const mm = String(resultDate.getMonth() + 1).padStart(2, '0');
+          const dd = String(resultDate.getDate()).padStart(2, '0');
+          
+          setValue('TMT_Pensiun', `${yyyy}-${mm}-${dd}`);
+        }
+      }
+    }
+  }, [watchedTanggalLahir, watchedBUP, setValue]);
+
   useEffect(() => {
     register('Image');
   }, [register]);
@@ -349,7 +464,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const result = await response.json();
+      const result = await handleResponse(response);
 
       if (Constants.APPS_SCRIPT_URL) {
         if (result.status === 'success' || result.success) {
@@ -394,7 +509,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_pegawai: id, action: 'delete', sheetName: 'MASTER_PEGAWAI' }),
       });
-      const result = await response.json();
+      const result = await handleResponse(response);
       
       if (result.status === 'success' || result.success) {
         fetchPegawai();
@@ -485,7 +600,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const result = await response.json();
+      const result = await handleResponse(response);
 
       if (result.status === 'success' || result.success) {
         setSubmitStatus('success');
@@ -517,7 +632,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id_dokumen: id, action: 'delete', sheetName: 'DATA_DOKUMEN' }),
       });
-      const result = await response.json();
+      const result = await handleResponse(response);
       if (result.status === 'success' || result.success) {
         fetchDokumen();
         setDeleteConfirm(null);
@@ -551,8 +666,12 @@ export default function App() {
                           String(p.NIK || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchStatus = !filterStatusPegawai || p.Status_Pegawai === filterStatusPegawai;
+      const matchKelompok = !filterKelompokJabatan || p.Kelompok_Jabatan === filterKelompokJabatan;
+      const matchPendidikan = !filterJenjangPendidikan || p.Jenjang_Pendidikan === filterJenjangPendidikan;
+      const matchGender = !filterJenisKelamin || p.Jenis_Kelamin === filterJenisKelamin;
+      const matchAgama = !filterAgama || p.Agama === filterAgama;
       
-      return matchSearch && matchStatus;
+      return matchSearch && matchStatus && matchKelompok && matchPendidikan && matchGender && matchAgama;
     });
 
     return [...list].sort((a, b) => {
@@ -563,7 +682,7 @@ export default function App() {
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [pegawaiList, searchTerm, sortConfig]);
+  }, [pegawaiList, searchTerm, sortConfig, filterStatusPegawai, filterKelompokJabatan, filterJenjangPendidikan, filterJenisKelamin, filterAgama]);
 
   const pagedList = useMemo(() => {
     if (pageSize === 'all') return filteredList;
@@ -594,7 +713,7 @@ export default function App() {
   // Reset pages when search or page size changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, pageSize, filterStatusPegawai]);
+  }, [searchTerm, pageSize, filterStatusPegawai, filterKelompokJabatan, filterJenjangPendidikan, filterJenisKelamin, filterAgama]);
 
   useEffect(() => {
     setCurrentDokumenPage(1);
@@ -1067,14 +1186,35 @@ export default function App() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Pegawai" value={stats.total} icon={Users} color="blue" />
-        <StatCard title="PNS / CPNS" value={stats.pns} icon={ShieldCheck} color="indigo" />
-        <StatCard title="Pegawai PPPK" value={stats.pppk} icon={Award} color="teal" />
+        <div className="lg:col-span-1">
+          <StatCard 
+            title="Total Seluruh Pegawai" 
+            value={stats.total} 
+            icon={Users} 
+            color="blue" 
+            isPrimary={true}
+          />
+        </div>
         <StatCard 
-          title="Pegawai Jenis Lain" 
+          title="PNS / CPNS" 
+          value={stats.pns} 
+          icon={ShieldCheck} 
+          color="indigo" 
+          totalValue={stats.total}
+        />
+        <StatCard 
+          title="Pegawai PPPK" 
+          value={stats.pppk} 
+          icon={Award} 
+          color="teal" 
+          totalValue={stats.total}
+        />
+        <StatCard 
+          title="Pegawai Lainnya" 
           value={stats.jenisLain} 
           icon={MoreHorizontal} 
           color="orange"
+          totalValue={stats.total}
           subDetails={[
             { label: 'Honorer APBD', value: stats.honorApbd },
             { label: 'Honorer BLUD', value: stats.honorBlud }
@@ -1098,11 +1238,51 @@ export default function App() {
                   className="bg-transparent text-xs font-bold text-gray-600 outline-none cursor-pointer focus:text-blue-600"
                 >
                   <option value="">Semua Status</option>
-                  <option value="PNS">PNS</option>
-                  <option value="CPNS">CPNS</option>
-                  <option value="PPPK">PPPK</option>
-                  <option value="Honorer APBD">Honorer APBD</option>
-                  <option value="Honorer BLUD">Honorer BLUD</option>
+                  {Constants.STATUS_PEGAWAI_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Kelompok:</span>
+                <select 
+                  value={filterKelompokJabatan} 
+                  onChange={(e) => setFilterKelompokJabatan(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-gray-600 outline-none cursor-pointer focus:text-blue-600"
+                >
+                  <option value="">Semua Kelompok</option>
+                  {Constants.KELOMPOK_JABATAN_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Pendidikan:</span>
+                <select 
+                  value={filterJenjangPendidikan} 
+                  onChange={(e) => setFilterJenjangPendidikan(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-gray-600 outline-none cursor-pointer focus:text-blue-600"
+                >
+                  <option value="">Semua Pendidikan</option>
+                  {Constants.JENJANG_PENDIDIKAN_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+                <span className="text-[10px] font-bold text-gray-400 uppercase">Gender:</span>
+                <select 
+                  value={filterJenisKelamin} 
+                  onChange={(e) => setFilterJenisKelamin(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-gray-600 outline-none cursor-pointer focus:text-blue-600"
+                >
+                  <option value="">Semua</option>
+                  {Constants.JENIS_KELAMIN_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
                 </select>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
@@ -1848,10 +2028,10 @@ export default function App() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormGroup label="Rentang BUP (Batas Usia Pensiun)">
-                <input {...register('Rentang_BUP')} className={inputClass} placeholder="Contoh: 58 Tahun" />
+                <input {...register('Rentang_BUP')} className={inputClass} placeholder="Contoh: 58" />
               </FormGroup>
-              <FormGroup label="TMT Pensiun">
-                <input type="date" {...register('TMT_Pensiun')} className={inputClass} />
+              <FormGroup label="TMT Pensiun (Otomatis)">
+                <input type="date" {...register('TMT_Pensiun')} className={cn(inputClass, "bg-blue-50/50 font-bold text-blue-700")} />
               </FormGroup>
             </div>
           </div>
@@ -1945,6 +2125,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex">
+      <LoadingOverlay />
       <AnimatePresence>
         {renderDetailModal()}
         {renderPreviewModal()}
@@ -2025,8 +2206,11 @@ export default function App() {
             >
               <div className="p-6 border-b border-slate-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-xs">SDM</span>
-                  <span className="text-white font-bold text-lg">Monitoring SDM</span>
+                  <span className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-xs shrink-0">SDM</span>
+                  <span className="text-white font-bold text-sm leading-tight">Monitoring Administrasi & Data Pegawai</span>
+                </div>
+                <div className="px-4 pb-2">
+                  <p className="text-slate-400 text-[10px] uppercase tracking-wider font-semibold">RSUD Drs. H. AMRI TAMBUNAN</p>
                 </div>
                 <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400">
                   <ChevronLeft className="w-6 h-6" />
@@ -2104,11 +2288,11 @@ export default function App() {
               exit={{ opacity: 0, x: -10 }}
               className="flex-1"
             >
-              <h1 className="text-white font-bold text-lg flex items-center gap-2">
-                <span className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-xs">SDM</span>
-                Monitoring SDM
+              <h1 className="text-white font-bold text-sm leading-tight flex items-start gap-2">
+                <span className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center text-white text-xs shrink-0">SDM</span>
+                <span>Monitoring Administrasi & Data Pegawai</span>
               </h1>
-              <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider font-semibold">RSUD System</p>
+              <p className="text-slate-400 text-[10px] mt-1 uppercase tracking-wider font-semibold">RSUD Drs. H. AMRI TAMBUNAN</p>
             </motion.div>
           )}
           {sidebarCollapsed && (
@@ -2253,9 +2437,11 @@ export default function App() {
              </button>
              <div className="flex items-center gap-2">
                <span className="lg:hidden w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-xs" onClick={() => setMobileMenuOpen(true)}>SDM</span>
-               <span className="hidden sm:inline">RSUD SDM Monitor</span>
-               <ChevronRight className="w-3 h-3" />
-               <span className="text-blue-600 font-semibold capitalize">
+               <span className="hidden sm:inline font-bold text-gray-900">RSUD Drs. H. AMRI TAMBUNAN</span>
+               <ChevronRight className="w-3 h-3 text-gray-400" />
+               <span className="hidden md:inline text-gray-400 text-[10px]">Monitoring Administrasi & Data Pegawai</span>
+               <ChevronRight className="w-3 h-3 text-gray-400 hidden md:inline" />
+               <span className="text-blue-600 font-bold capitalize">
                  {activeTab === 'dashboard' ? 'Dashboard Overview' : 
                   activeTab === 'form' ? 'Form Input Data' : 
                   activeTab === 'dokumen' ? 'Manajemen Dokumen' : 
@@ -2467,49 +2653,102 @@ export default function App() {
   );
 }
 
-function StatCard({ title, value, icon: Icon, color, subDetails }: { title: string; value: number; icon: any; color: string; subDetails?: { label: string; value: number }[] }) {
+function StatCard({ 
+  title, 
+  value, 
+  icon: Icon, 
+  color, 
+  subDetails,
+  totalValue,
+  isPrimary = false
+}: { 
+  title: string; 
+  value: number; 
+  icon: any; 
+  color: string; 
+  subDetails?: { label: string; value: number }[];
+  totalValue?: number;
+  isPrimary?: boolean;
+}) {
   const colors: Record<string, string> = {
-  red: 'bg-red-50 text-red-600',
-    blue: 'bg-blue-50 text-blue-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    teal: 'bg-teal-50 text-teal-600',
-    orange: 'bg-orange-50 text-orange-600',
+    red: 'bg-red-50 text-red-600 border-red-100',
+    blue: 'bg-blue-50 text-blue-600 border-blue-100',
+    indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+    teal: 'bg-teal-50 text-teal-600 border-teal-100',
+    orange: 'bg-orange-50 text-orange-600 border-orange-100',
+  };
+
+  const barColors: Record<string, string> = {
+    red: 'bg-red-500',
+    blue: 'bg-blue-500',
+    indigo: 'bg-indigo-500',
+    teal: 'bg-teal-500',
+    orange: 'bg-orange-500',
   };
   
+  const percentage = totalValue && totalValue > 0 ? (value / totalValue) * 100 : 0;
+  
   return (
-    <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm transition-all hover:shadow-md hover:border-blue-200 group flex flex-col justify-between h-full">
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-all group-hover:scale-110", colors[color])}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <div className="flex flex-col text-right">
-             <span className="text-2xl font-bold text-gray-900 leading-none">{value}</span>
-             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Total Orang</span>
-          </div>
-        </div>
-        <h4 className="text-sm font-semibold text-gray-500 mb-3">{title}</h4>
-      </div>
-
-      {subDetails && subDetails.length > 0 ? (
-        <div className="space-y-2 pt-3 border-t border-gray-50">
-          {subDetails.map((detail, idx) => (
-            <div key={idx} className="flex items-center justify-between">
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-tighter">{detail.label}</span>
-              <span className="text-xs font-bold text-gray-700">{detail.value}</span>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden mt-auto">
-          <div className={cn("h-full rounded-full", 
-            color === 'blue' ? 'bg-blue-500' : 
-            color === 'indigo' ? 'bg-indigo-500' : 
-            color === 'teal' ? 'bg-teal-500' : 
-            color === 'red' ? 'bg-red-500' : 'bg-orange-500'
-          )} style={{ width: '65%' }} />
+    <div className={cn(
+      "bg-white p-6 rounded-3xl border transition-all hover:shadow-lg group flex flex-col justify-between h-full relative overflow-hidden",
+      isPrimary ? "border-blue-200 shadow-blue-100/50 shadow-xl ring-4 ring-blue-50" : "border-gray-100 shadow-sm hover:border-blue-200"
+    )}>
+      {isPrimary && (
+        <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-125 transition-transform">
+          <Icon className="w-24 h-24 -mr-8 -mt-8" />
         </div>
       )}
+      
+      <div className="relative z-10">
+        <div className="flex items-center justify-between mb-6">
+          <div className={cn(
+            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all group-hover:rotate-6", 
+            colors[color] || colors.blue,
+            "border shadow-sm"
+          )}>
+            <Icon className="w-6 h-6" />
+          </div>
+          <div className="flex flex-col text-right">
+             <span className={cn(
+               "font-black text-gray-900 leading-none tracking-tight",
+               isPrimary ? "text-4xl" : "text-3xl"
+             )}>{value}</span>
+             <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mt-1.5">Orang</span>
+          </div>
+        </div>
+        <h4 className={cn(
+          "font-bold mb-4",
+          isPrimary ? "text-blue-900 text-lg" : "text-gray-500 text-sm"
+        )}>{title}</h4>
+      </div>
+
+      <div className="mt-auto relative z-10">
+        {subDetails && subDetails.length > 0 ? (
+          <div className="space-y-2.5 pt-4 border-t border-gray-100">
+            {subDetails.map((detail, idx) => (
+              <div key={idx} className="flex items-center justify-between group/item">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight group-hover/item:text-gray-600 transition-colors">{detail.label}</span>
+                <span className="text-xs font-black text-gray-800">{detail.value}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-2 pt-2">
+            <div className="flex justify-between items-end">
+              <span className="text-[10px] font-bold text-gray-400 uppercase">Distribusi</span>
+              <span className="text-[10px] font-black text-gray-600">{percentage.toFixed(1)}%</span>
+            </div>
+            <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden shadow-inner">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: `${percentage}%` }}
+                transition={{ duration: 1, ease: "easeOut" }}
+                className={cn("h-full rounded-full shadow-sm", barColors[color] || barColors.blue)} 
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

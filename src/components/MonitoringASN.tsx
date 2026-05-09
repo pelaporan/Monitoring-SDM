@@ -7,11 +7,11 @@ import React, { useMemo, useState } from 'react';
 import { 
   TrendingUp, Calendar, Clock, Search, Filter, 
   ChevronRight, Award, DollarSign, UserMinus, AlertCircle,
-  FileText, ArrowUpDown
+  FileText, ArrowUpDown, ChevronLeft
 } from 'lucide-react';
 import { Pegawai } from '../types';
 import { calculateNextPangkat, calculateNextKGB, calculatePensiun, getBUP } from '../lib/monitoringUtils';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { cn } from '../lib/utils';
 import * as Constants from '../constants';
@@ -22,19 +22,25 @@ interface MonitoringASNProps {
 
 type TabType = 'pangkat' | 'kgb' | 'pensiun';
 
-const StatusBadge = ({ status }: { status: string }) => {
+const StatusBadge = ({ status, activeTab }: { status: string, activeTab: string }) => {
   const configs: any = {
     prioritas: "bg-red-100 text-red-600 border-red-200",
     segera: "bg-amber-100 text-amber-600 border-amber-200",
     aman: "bg-emerald-100 text-emerald-600 border-emerald-200",
     terlambat: "bg-slate-100 text-slate-600 border-slate-200"
   };
+
+  let label = status;
+  if (status === 'terlambat') {
+    label = activeTab === 'pensiun' ? 'Pensiun' : 'Terlewati';
+  }
+
   return (
     <span className={cn(
       "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase border tracking-tight",
       configs[status] || configs.aman
     )}>
-      {status}
+      {label}
     </span>
   );
 };
@@ -58,18 +64,34 @@ const SummaryCard = ({ title, value, icon: Icon, colorClass, statusLabel }: any)
 export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
   const [activeTab, setActiveTab] = useState<TabType>('pangkat');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number | 'all'>(25);
+
   const [filters, setFilters] = useState({
     unit: '',
     golongan: '',
     jabatan: ''
   });
 
+  // Reset pagination on filter or tab change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, filters]);
+
   // Process data with calculations
   const processedData = useMemo(() => {
     return data
-      .filter(p => p.Status_Pegawai === 'PNS' || p.Status_Pegawai === 'PPPK')
+      .filter(p => p.Status_Pegawai === 'PNS' || p.Status_Pegawai === 'CPNS' || p.Status_Pegawai === 'PPPK' || p.Status_Pegawai === 'Pensiun')
       .map(p => {
-        const bup = getBUP(p.Jabatan, p.Kelompok_Jabatan);
+        // Gunakan Rentang_BUP dari data jika ada, kalau tidak baru hitung manual
+        let bup = 58;
+        if (p.Rentang_BUP) {
+          const extracted = parseInt(String(p.Rentang_BUP).replace(/\D/g, ''), 10);
+          if (!isNaN(extracted)) bup = extracted;
+        } else {
+          bup = getBUP(p.Jabatan, p.Kelompok_Jabatan);
+        }
+
         return {
           ...p,
           pangkatInfo: calculateNextPangkat(p.TMT_Pangkat || ''),
@@ -91,6 +113,9 @@ export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
   // Filtering Logic
   const filteredData = useMemo(() => {
     let list = processedData.filter(p => {
+      // Sembunyikan status 'Pensiun' di tab lain selain tab pensiun
+      if (activeTab !== 'pensiun' && p.Status_Pegawai === 'Pensiun') return false;
+      
       const matchSearch = String(p.Nama || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                           String(p.NIP || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchGol = !filters.golongan || p.Gol === filters.golongan;
@@ -107,13 +132,25 @@ export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
       const dateB = activeTab === 'pangkat' ? b.pangkatInfo.nextDate : 
                     activeTab === 'kgb' ? b.kgbInfo.nextDate : b.pensiunInfo.nextDate;
       
-      if (!dateA) return 1;
-      if (!dateB) return -1;
-      return dateA.getTime() - dateB.getTime();
+      const timeA = dateA && isValid(dateA) ? dateA.getTime() : Infinity;
+      const timeB = dateB && isValid(dateB) ? dateB.getTime() : Infinity;
+      
+      return timeA - timeB;
     });
 
     return list;
   }, [processedData, searchTerm, filters, activeTab]);
+
+  const totalPages = useMemo(() => {
+    if (pageSize === 'all') return 1;
+    return Math.ceil(filteredData.length / pageSize);
+  }, [filteredData, pageSize]);
+
+  const paginatedData = useMemo(() => {
+    if (pageSize === 'all') return filteredData;
+    const start = (currentPage - 1) * pageSize;
+    return filteredData.slice(start, start + pageSize);
+  }, [filteredData, currentPage, pageSize]);
 
   return (
     <div className="space-y-8 pb-20">
@@ -198,15 +235,31 @@ export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
               </div>
             </div>
             
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Cari Nama / NIP..."
-                className="pl-11 pr-6 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all w-full md:w-64"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-2xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                <span className="text-[10px] font-bold text-gray-400 uppercase leading-none whitespace-nowrap">Limit</span>
+                <select 
+                  className="bg-transparent border-none text-xs font-bold outline-none cursor-pointer text-gray-700"
+                  value={pageSize === 'all' ? 'all' : pageSize}
+                  onChange={(e) => setPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                >
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value="all">Semua</option>
+                </select>
+              </div>
+
+              <div className="relative group flex-1 md:flex-none">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                <input 
+                  type="text" 
+                  placeholder="Cari Nama / NIP..."
+                  className="pl-11 pr-6 py-2.5 bg-gray-50 border border-gray-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-100 focus:bg-white transition-all w-full md:w-64"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
@@ -259,42 +312,62 @@ export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredData.map((p, idx) => {
+              {paginatedData.map((p, idx) => {
                 const info = activeTab === 'pangkat' ? p.pangkatInfo : 
                              activeTab === 'kgb' ? p.kgbInfo : p.pensiunInfo;
                 
                 const lastDate = activeTab === 'pangkat' ? p.TMT_Pangkat : 
                                  activeTab === 'kgb' ? p.TMT_KGB : p.Tanggal_Lahir;
 
+                const isAlreadyRetired = p.Status_Pegawai === 'Pensiun';
+
                 return (
                   <tr key={idx} className={cn(
                     "hover:bg-blue-50/30 transition-colors group",
-                    info.status === 'prioritas' && "bg-red-50/20"
+                    info.status === 'prioritas' && !isAlreadyRetired && "bg-red-50/20",
+                    isAlreadyRetired && "bg-gray-50/50 opacity-75"
                   )}>
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">{p.Nama}</div>
                       <div className="text-xs text-gray-400 font-medium tracking-tight">NIP: {p.NIP || '(Tanpa NIP)'}</div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">{p.Status_Pegawai}</div>
+                      <div className={cn(
+                        "inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase",
+                        isAlreadyRetired ? "bg-gray-200 text-gray-600" : "text-gray-400"
+                      )}>
+                        {p.Status_Pegawai}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-xs text-gray-700 font-bold">{p.Jabatan}</div>
                       <div className="text-[10px] text-gray-400 mt-0.5">{p.Gol}</div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-[10px] text-gray-400 font-medium">Last: {lastDate || '-'}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">
+                        {activeTab === 'pangkat' ? 'TMT Pangkat: ' : 
+                         activeTab === 'kgb' ? 'TMT KGB: ' : 'Lahir: '}
+                        {lastDate || '-'}
+                      </div>
                       <div className="text-xs text-gray-900 font-bold mt-1">
-                        Next: {info.nextDate ? format(info.nextDate, 'dd MMMM yyyy', { locale: id }) : '-'}
+                        {activeTab === 'pangkat' ? 'Next Pangkat: ' : 
+                         activeTab === 'kgb' ? 'Next KGB: ' : 'TMT Pensiun: '}
+                        {info.nextDate && isValid(info.nextDate) ? format(info.nextDate, 'dd MMMM yyyy', { locale: id }) : '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <StatusBadge status={info.status} />
+                        {isAlreadyRetired ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border tracking-tight bg-gray-100 text-gray-600 border-gray-200">
+                            Pensiun
+                          </span>
+                        ) : (
+                          <StatusBadge status={info.status} activeTab={activeTab} />
+                        )}
                         <div className="flex flex-col">
                           <span className={cn(
                             "text-xs font-bold",
-                            info.monthsRemaining < 0 ? "text-red-500" : "text-gray-700"
+                            isAlreadyRetired ? "text-gray-400" : (info.monthsRemaining < 0 ? "text-red-500" : "text-gray-700")
                           )}>
-                            {info.monthsRemaining < 0 ? 'Terlambat' : `Sisa ${info.monthsRemaining} Bulan`}
+                            {isAlreadyRetired ? '-' : (info.monthsRemaining < 0 ? 'Terlewati' : `Sisa ${info.monthsRemaining} Bulan`)}
                           </span>
                         </div>
                       </div>
@@ -302,7 +375,7 @@ export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
                   </tr>
                 );
               })}
-              {filteredData.length === 0 && (
+              {paginatedData.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
                     Belum ada data monitoring untuk kriteria ini
@@ -311,6 +384,35 @@ export const MonitoringASN: React.FC<MonitoringASNProps> = ({ data }) => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Controls */}
+        <div className="bg-gray-50/50 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-orange-50">
+          <div className="text-xs text-gray-400 font-medium italic">
+            Menampilkan {paginatedData.length} dari {filteredData.length} data pegawai
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1 || pageSize === 'all'}
+              className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </button>
+            <div className="bg-white border border-gray-200 rounded-xl px-4 py-1.5 flex items-center gap-2">
+              <span className="text-xs font-bold text-blue-600">{currentPage}</span>
+              <span className="text-xs text-gray-300">/</span>
+              <span className="text-xs font-bold text-gray-400">{totalPages}</span>
+            </div>
+            <button 
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || pageSize === 'all'}
+              className="p-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

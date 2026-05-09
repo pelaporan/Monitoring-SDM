@@ -58,6 +58,7 @@ export const JENJANG_PENDIDIKAN_OPTIONS = [
   'SD',
   'SMP',
   'SMA/SMK',
+  'D1',
   'D3',
   'D4',
   'S1',

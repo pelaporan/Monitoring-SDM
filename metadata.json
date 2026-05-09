@@ -1,6 +1,6 @@
 {
-  "name": "RSUD SDM Monitor",
-  "description": "Sistem Monitoring Sumber Daya Manusia (SDM) untuk RSUD dengan integrasi Google Sheets.",
+  "name": "Monitoring Administrasi dan Data Pegawai RSUD Drs. H. AMRI TAMBUNAN",
+  "description": "Sistem Monitoring Administrasi dan Data Pegawai untuk RSUD Drs. H. AMRI TAMBUNAN dengan integrasi Google Sheets.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

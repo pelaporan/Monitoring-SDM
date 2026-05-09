@@ -25,15 +25,29 @@ interface AnalyticsViewProps {
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
-const SummaryCard = ({ title, value, icon: Icon, colorClass, subText }: any) => (
-  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex items-start gap-4 transition-all hover:shadow-md">
-    <div className={cn("p-4 rounded-2xl", colorClass)}>
-      <Icon className="w-6 h-6" />
+const SummaryCard = ({ title, value, icon: Icon, colorClass, subText, isPrimary = false }: any) => (
+  <div className={cn(
+    "bg-white rounded-[32px] p-6 border transition-all hover:shadow-lg group flex items-start gap-5",
+    isPrimary ? "border-blue-100 shadow-xl shadow-blue-50 ring-4 ring-blue-50/50" : "border-gray-50 shadow-sm hover:border-blue-200"
+  )}>
+    <div className={cn(
+      "w-14 h-14 rounded-2xl flex items-center justify-center transition-all group-hover:scale-110 group-hover:rotate-3 shadow-sm border border-white/50",
+      colorClass
+    )}>
+      <Icon className="w-7 h-7" />
     </div>
     <div>
-      <p className="text-sm font-medium text-gray-500">{title}</p>
-      <h3 className="text-2xl font-bold text-gray-900 mt-1">{value}</h3>
-      {subText && <p className="text-xs text-gray-400 mt-1">{subText}</p>}
+      <p className={cn(
+        "font-bold uppercase tracking-widest text-[10px] transition-colors",
+        isPrimary ? "text-blue-500" : "text-gray-400"
+      )}>{title}</p>
+      <div className="flex items-baseline gap-1 mt-1">
+        <h3 className={cn(
+          "font-black text-gray-900 tracking-tight",
+          isPrimary ? "text-3xl" : "text-2xl"
+        )}>{value}</h3>
+      </div>
+      {subText && <p className="text-[10px] font-bold text-gray-400 mt-1.5 uppercase tracking-tight">{subText}</p>}
     </div>
   </div>
 );
@@ -54,6 +68,7 @@ const ChartCard = ({ title, icon: Icon, children, className }: any) => (
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [showLabels, setShowLabels] = useState(false);
   const [filters, setFilters] = useState({
     status: '',
     unit: '',
@@ -97,7 +112,31 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
       acc[edu] = (acc[edu] || 0) + 1;
       return acc;
     }, {});
-    return Object.keys(counts).map(name => ({ name, value: counts[name] }));
+    
+    return Object.keys(counts)
+      .map(name => ({ name, value: counts[name] }))
+      .sort((a, b) => {
+        const getIndex = (name: string) => {
+          const normalized = name.toLowerCase().trim();
+          if (normalized === 'sma' || normalized === 'smk') {
+            return Constants.JENJANG_PENDIDIKAN_OPTIONS.findIndex(
+              opt => opt.toLowerCase().trim() === 'sma/smk'
+            );
+          }
+          return Constants.JENJANG_PENDIDIKAN_OPTIONS.findIndex(
+            opt => opt.toLowerCase().trim() === normalized
+          );
+        };
+
+        const indexA = getIndex(a.name);
+        const indexB = getIndex(b.name);
+        
+        if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        
+        return indexA - indexB;
+      });
   }, [processedData]);
 
   const ageCategoryData = useMemo(() => {
@@ -132,7 +171,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
       acc[val] = (acc[val] || 0) + 1;
       return acc;
     }, {});
-    return Object.keys(counts).map(name => ({ name, value: counts[name] }));
+    
+    return Object.keys(counts)
+      .map(name => ({ name, value: counts[name] }))
+      .sort((a, b) => {
+        const indexA = Constants.GOLONGAN_OPTIONS.findIndex(
+          opt => opt.split(' - ')[0] === a.name || opt === a.name
+        );
+        const indexB = Constants.GOLONGAN_OPTIONS.findIndex(
+          opt => opt.split(' - ')[0] === b.name || opt === b.name
+        );
+        
+        if (indexA === -1 && indexB === -1) return a.name.localeCompare(b.name);
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        
+        return indexA - indexB;
+      });
   }, [processedData]);
 
   // 4. Filtering Table
@@ -185,6 +240,15 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
           <p className="text-sm text-gray-500 mt-1">Gambarkan data kepegawaian secara visual dan mendalam</p>
         </div>
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-100 rounded-xl text-xs font-bold text-gray-600 shadow-sm cursor-pointer hover:bg-gray-50 transition-all">
+            <input 
+              type="checkbox" 
+              checked={showLabels} 
+              onChange={(e) => setShowLabels(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            Tampilkan Angka
+          </label>
           <button 
             onClick={handleExportExcel}
             className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-green-200 hover:bg-green-700 transition-all active:scale-95"
@@ -201,8 +265,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
           title="Total Pegawai" 
           value={stats.total} 
           icon={Users} 
-          colorClass="bg-blue-50 text-blue-600"
+          colorClass="bg-blue-50 text-blue-600 shadow-blue-100"
           subText="Aktif dalam database"
+          isPrimary={true}
         />
         <SummaryCard 
           title="PNS / PPPK" 
@@ -240,7 +305,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
                 outerRadius={80}
                 paddingAngle={5}
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={showLabels ? ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)` : ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {genderData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -259,7 +324,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
               <Tooltip cursor={{ fill: 'transparent' }} />
-              <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+              <Bar 
+                dataKey="value" 
+                fill="#3b82f6" 
+                radius={[0, 4, 4, 0]} 
+                barSize={20}
+                label={showLabels ? { position: 'right', fontSize: 10, fill: '#3b82f6', fontWeight: 'bold' } : false}
+              />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -273,7 +344,12 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
               <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
               <YAxis axisLine={false} tickLine={false} style={{ fontSize: '10px' }} />
               <Tooltip cursor={{ fill: '#f8fafc' }} />
-              <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar 
+                dataKey="value" 
+                fill="#8b5cf6" 
+                radius={[4, 4, 0, 0]}
+                label={showLabels ? { position: 'top', fontSize: 10, fill: '#8b5cf6', fontWeight: 'bold' } : false}
+              />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -289,6 +365,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
                 outerRadius={70}
                 paddingAngle={5}
                 dataKey="value"
+                label={showLabels ? ({ name, value }) => `${name}: ${value}` : false}
               >
                 {jabatanData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -309,7 +386,13 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" width={120} axisLine={false} tickLine={false} style={{ fontSize: '9px' }} />
               <Tooltip cursor={{ fill: 'transparent' }} />
-              <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} barSize={15} />
+              <Bar 
+                dataKey="value" 
+                fill="#10b981" 
+                radius={[0, 4, 4, 0]} 
+                barSize={15}
+                label={showLabels ? { position: 'right', fontSize: 9, fill: '#10b981', fontWeight: 'bold' } : false}
+              />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -323,7 +406,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({ data }) => {
                 cy="50%"
                 outerRadius={80}
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={showLabels ? ({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)` : ({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {religionData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
