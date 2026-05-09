@@ -102,6 +102,67 @@ const SECTIONS = [
 ];
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<{ username: string; role: string } | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('rsud_user');
+    const savedToken = localStorage.getItem('rsud_token');
+    if (savedUser && savedToken) {
+      try {
+        setUser(JSON.parse(savedUser));
+        setIsAuthenticated(true);
+      } catch (e) {
+        localStorage.removeItem('rsud_user');
+        localStorage.removeItem('rsud_token');
+      }
+    }
+  }, []);
+
+  const handleLogin = async (data: any) => {
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const AUTH_URL = 'https://script.google.com/macros/s/AKfycbypaL3lhgQulw-0gMl1dviWSzPFcUGku966XZJITy0dY20QZPtXoWJL8Kgt5uYbQD59Jg/exec';
+      
+      // Menggunakan 'text/plain' untuk menghindari CORS preflight OPTIONS request
+      // Google Apps Script doPost tidak mendukung OPTIONS secara default
+      const response = await fetch(AUTH_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'login',
+          email: data.email,
+          password: data.password
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.status === 'success') {
+        localStorage.setItem('rsud_user', JSON.stringify(result.user));
+        localStorage.setItem('rsud_token', result.token);
+        setUser(result.user);
+        setIsAuthenticated(true);
+      } else {
+        setLoginError(result.message || 'Login gagal.');
+      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      setLoginError('Koneksi ke server login gagal. Pastikan Apps Script sudah di-deploy sebagai "Anyone".');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('rsud_user');
+    localStorage.removeItem('rsud_token');
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'form' | 'dokumen' | 'analytics' | 'monitoring'>('dashboard');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -2123,6 +2184,10 @@ export default function App() {
     }
   };
 
+  if (!isAuthenticated) {
+    return <LoginPage onLogin={handleLogin} isLoading={loginLoading} error={loginError} />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex">
       <LoadingOverlay />
@@ -2267,6 +2332,13 @@ export default function App() {
                   <Clock className="w-4 h-4" />
                   <span>Monitoring ASN</span>
                 </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-slate-800 rounded-xl transition-all"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm font-medium">Logout</span>
+                </button>
               </nav>
             </motion.div>
           </>
@@ -2408,14 +2480,29 @@ export default function App() {
           )}
         </nav>
 
-        <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-3 overflow-hidden">
-          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">AD</div>
-          {!sidebarCollapsed && (
-            <div className="flex flex-col truncate">
-              <span className="text-[10px] font-bold text-white leading-none">Administrator</span>
-              <span className="text-[9px] text-slate-500 font-medium">RSUD Deli Serdang</span>
+        <div className="p-4 bg-slate-900 border-t border-slate-800 flex flex-col gap-2 overflow-hidden">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0">
+              {(user as any)?.name ? (user as any).name.substring(0, 2).toUpperCase() : 'U'}
             </div>
-          )}
+            {!sidebarCollapsed && (
+              <div className="flex flex-col truncate">
+                <span className="text-[10px] font-bold text-white leading-none capitalize">{(user as any)?.name || user?.username}</span>
+                <span className="text-[9px] text-slate-500 font-medium">{user?.role}</span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleLogout}
+            className={cn(
+              "flex items-center gap-2 px-2 py-1.5 text-red-400 hover:bg-slate-800 rounded-lg transition-all text-left",
+              sidebarCollapsed ? "justify-center" : ""
+            )}
+            title="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+            {!sidebarCollapsed && <span className="text-[10px] font-bold">Logout</span>}
+          </button>
         </div>
       </motion.aside>
 
@@ -2462,8 +2549,12 @@ export default function App() {
                </button>
              )}
             <div className="w-px h-6 bg-gray-200 hidden sm:block mx-2"></div>
-            <div className="w-9 h-9 bg-gray-100 rounded-full border border-gray-200 flex items-center justify-center font-bold text-gray-400 text-xs">
-              AD
+            <div className="flex flex-col items-end mr-2">
+              <span className="text-[10px] font-bold text-gray-900 leading-none capitalize">{(user as any)?.name || user?.username}</span>
+              <span className="text-[9px] text-gray-400 font-medium">{user?.role}</span>
+            </div>
+            <div className="w-9 h-9 bg-blue-50 rounded-full border border-blue-100 flex items-center justify-center font-bold text-blue-600 text-xs shadow-sm">
+              {(user as any)?.name ? (user as any).name.substring(0, 2).toUpperCase() : 'U'}
             </div>
           </div>
         </header>
@@ -2780,3 +2871,187 @@ const inputClass = cn(
   "placeholder:text-gray-300 text-gray-900",
   "disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
 );
+
+const LoginPage = ({ onLogin, isLoading, error }: any) => {
+  const { register, handleSubmit, formState: { errors } } = useForm();
+
+  return (
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 font-sans relative overflow-hidden">
+      {/* Dynamic Background Elements */}
+      <div className="absolute inset-0 z-0">
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.2, 1],
+            rotate: [0, 90, 0],
+            x: [0, 50, 0],
+            y: [0, 30, 0]
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+          className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-blue-600/30 rounded-full blur-[120px]"
+        />
+        <motion.div 
+          animate={{ 
+            scale: [1, 1.1, 1],
+            rotate: [0, -45, 0],
+            x: [0, -30, 0],
+            y: [0, 50, 0]
+          }}
+          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+          className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[100px]"
+        />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-slate-900/50 rounded-full blur-[150px]" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-6xl flex flex-col md:flex-row items-center gap-12 lg:gap-20">
+        {/* Brand/Hero Section */}
+        <motion.div 
+          initial={{ opacity: 0, x: -50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8 }}
+          className="flex-1 text-center md:text-left"
+        >
+          <motion.div 
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[2rem] flex items-center justify-center text-white mb-8 shadow-[0_0_50px_rgba(59,130,246,0.5)] mx-auto md:mx-0 border border-white/20"
+          >
+            <ShieldCheck className="w-12 h-12" />
+          </motion.div>
+          
+          <h1 className="text-6xl lg:text-8xl font-black text-white leading-none tracking-tighter mb-4 drop-shadow-2xl">
+            MONPEG <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">RSUD</span>
+          </h1>
+          
+          <div className="h-1.5 w-24 bg-blue-500 rounded-full mb-8 mx-auto md:mx-0"></div>
+          
+          <h2 className="text-2xl font-bold text-slate-200 mb-6 tracking-tight">
+            Monitoring Administrasi & Data Pegawai
+          </h2>
+          
+          <p className="text-lg text-slate-400 max-w-md mb-10 leading-relaxed font-medium">
+            Sistem monitoring administrasi & data pegawai RSUD Drs. H. Amri Tambunan untuk pengelolaan data ASN yang akurat, transparan, dan tepat waktu.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4 mt-8 md:mt-0">
+            {[
+              "Kenaikan Pangkat",
+              "Pensiun",
+              "Cuti",
+              "SKP",
+              "Dokumen Pegawai"
+            ].map((feature) => (
+              <div key={feature} className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm group hover:bg-white/10 transition-all duration-300">
+                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-300 tracking-wide">{feature}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Login Card */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="w-full max-w-[460px]"
+        >
+          <div className="relative group">
+            {/* Card Glow Effect */}
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[3rem] blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+            
+            <div className="relative bg-white/[0.03] backdrop-blur-3xl p-10 md:p-14 rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden">
+              {/* Inner Decorative Circle */}
+              <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+              <div className="mb-12 relative">
+                <h3 className="text-4xl font-black text-white mb-3 tracking-tight">Sign In</h3>
+                <p className="text-slate-400 text-sm font-semibold">Selamat datang kembali! Silahkan masuk ke dashboard anda.</p>
+              </div>
+
+              <form onSubmit={handleSubmit(onLogin)} className="space-y-8">
+                <div className="space-y-3">
+                  <label className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] ml-1">Account Email</label>
+                  <div className="relative group/input">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-500 group-focus-within/input:text-blue-400 group-focus-within/input:bg-blue-500/10 transition-all">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <input 
+                      type="email"
+                      {...register('email', { required: 'Email is required' })}
+                      className="w-full pl-16 pr-6 py-5 bg-white/[0.02] border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-semibold placeholder:text-slate-700 shadow-inner"
+                      placeholder="Enter your registered email"
+                    />
+                    {errors.email && (
+                      <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="absolute -bottom-6 left-1 text-[10px] text-red-500 font-bold uppercase tracking-wide">
+                        {errors.email.message as string}
+                      </motion.span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center px-1">
+                    <label className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em]">Secret Password</label>
+                  </div>
+                  <div className="relative group/input">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-500 group-focus-within/input:text-blue-400 group-focus-within/input:bg-blue-500/10 transition-all">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <input 
+                      type="password"
+                      {...register('password', { required: 'Password is required' })}
+                      className="w-full pl-16 pr-6 py-5 bg-white/[0.02] border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-semibold placeholder:text-slate-700 shadow-inner"
+                      placeholder="••••••••••••"
+                    />
+                    {errors.password && (
+                      <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="absolute -bottom-6 left-1 text-[10px] text-red-500 font-bold uppercase tracking-wide">
+                        {errors.password.message as string}
+                      </motion.span>
+                    )}
+                  </div>
+                </div>
+
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-4 p-5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-3xl"
+                  >
+                    <AlertCircle className="w-6 h-6 shrink-0" />
+                    <p className="text-[11px] font-black uppercase tracking-wider">{error}</p>
+                  </motion.div>
+                )}
+
+                <button 
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-3xl font-black shadow-[0_15px_40px_rgba(37,99,235,0.4)] hover:shadow-blue-500/60 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-xs relative overflow-hidden"
+                >
+                  <div className="absolute inset-x-0 top-0 h-[1px] bg-white/20"></div>
+                  {isLoading ? (
+                    <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      Authenticated Access
+                      <ChevronRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Corporate Footer */}
+      <div className="absolute bottom-10 inset-x-0 z-10 text-center">
+        <p className="text-slate-500/50 text-[10px] font-black tracking-[0.4em] uppercase">
+          &copy; 2026 RSUD Drs. H. Amri Tambunan &bull; Internal Systems Division
+        </p>
+      </div>
+    </div>
+  );
+};

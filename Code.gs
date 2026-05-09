@@ -93,6 +93,52 @@ function doPost(e) {
 
     var sheetName = payload.sheetName || 'MASTER_PEGAWAI';
     var action = payload.action || 'create';
+
+    // ACTION: LOGIN
+    if (action === 'login') {
+      var userSheet = ss.getSheetByName('USERS');
+      if (!userSheet) {
+        // Create USERS sheet if not exists with default admin
+        userSheet = ss.insertSheet('USERS');
+        userSheet.getRange(1, 1, 1, 4).setValues([["username", "password", "role", "status"]]);
+        userSheet.appendRow(["admin", "admin123", "Admin", "Aktif"]);
+      }
+      
+      var userData = userSheet.getDataRange().getValues();
+      var headers_user = userData[0];
+      var usernameIdx = headers_user.indexOf("username");
+      var passwordIdx = headers_user.indexOf("password");
+      var roleIdx = headers_user.indexOf("role");
+      var statusIdx = headers_user.indexOf("status");
+      
+      var foundUser = null;
+      for (var j = 1; j < userData.length; j++) {
+        if (userData[j][usernameIdx] === payload.username && userData[j][passwordIdx] === payload.password) {
+          if (userData[j][statusIdx] === "Aktif") {
+            foundUser = {
+              username: userData[j][usernameIdx],
+              role: userData[j][roleIdx],
+              status: userData[j][statusIdx]
+            };
+          } else {
+            return ContentService.createTextOutput(JSON.stringify({ "status": "error", "message": "Akun tidak aktif." })).setMimeType(ContentService.MimeType.JSON);
+          }
+          break;
+        }
+      }
+      
+      if (foundUser) {
+        return ContentService.createTextOutput(JSON.stringify({ 
+          "status": "success", 
+          "message": "Login berhasil", 
+          "user": foundUser,
+          "token": Utilities.getUuid() // Mock token for session
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({ "status": "error", "message": "Username atau Password salah." })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     var sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
     
     var headers = [];
