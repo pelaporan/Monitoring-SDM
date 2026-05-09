@@ -2876,9 +2876,9 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
   const { register, handleSubmit, formState: { errors } } = useForm();
 
   return (
-    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 font-sans relative overflow-hidden">
+    <div className="min-h-screen bg-[#020617] flex items-center justify-center p-4 sm:p-8 md:p-12 font-sans relative overflow-x-hidden overflow-y-auto">
       {/* Dynamic Background Elements */}
-      <div className="absolute inset-0 z-0">
+      <div className="fixed inset-0 z-0">
         <motion.div 
           animate={{ 
             scale: [1, 1.2, 1],
@@ -2887,7 +2887,7 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
             y: [0, 30, 0]
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-blue-600/30 rounded-full blur-[120px]"
+          className="absolute top-[-20%] left-[-10%] w-[400px] md:w-[800px] h-[400px] md:h-[800px] bg-blue-600/30 rounded-full blur-[80px] md:blur-[120px]"
         />
         <motion.div 
           animate={{ 
@@ -2897,43 +2897,43 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
             y: [0, 50, 0]
           }}
           transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-10%] right-[-5%] w-[600px] h-[600px] bg-indigo-600/20 rounded-full blur-[100px]"
+          className="absolute bottom-[-10%] right-[-5%] w-[300px] md:w-[600px] h-[300px] md:h-[600px] bg-indigo-600/20 rounded-full blur-[70px] md:blur-[100px]"
         />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] bg-slate-900/50 rounded-full blur-[150px]" />
       </div>
 
-      <div className="relative z-10 w-full max-w-6xl flex flex-col md:flex-row items-center gap-12 lg:gap-20">
+      <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row items-center gap-10 lg:gap-20 py-10">
         {/* Brand/Hero Section */}
         <motion.div 
-          initial={{ opacity: 0, x: -50 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="flex-1 text-center md:text-left"
+          className="flex-1 text-center lg:text-left w-full"
         >
           <motion.div 
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
-            className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-[2rem] flex items-center justify-center text-white mb-8 shadow-[0_0_50px_rgba(59,130,246,0.5)] mx-auto md:mx-0 border border-white/20"
+            className="w-16 h-16 md:w-24 md:h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl md:rounded-[2rem] flex items-center justify-center text-white mb-6 md:mb-8 shadow-[0_0_50px_rgba(59,130,246,0.3)] mx-auto lg:mx-0 border border-white/20"
           >
-            <ShieldCheck className="w-12 h-12" />
+            <ShieldCheck className="w-8 h-8 md:w-12 md:h-12" />
           </motion.div>
           
-          <h1 className="text-6xl lg:text-8xl font-black text-white leading-none tracking-tighter mb-4 drop-shadow-2xl">
-            MONPEG <br />
+          <h1 className="text-4xl md:text-6xl lg:text-8xl font-black text-white leading-none tracking-tighter mb-4 drop-shadow-2xl">
+            MONPEG <br className="hidden md:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-300">RSUD</span>
           </h1>
           
-          <div className="h-1.5 w-24 bg-blue-500 rounded-full mb-8 mx-auto md:mx-0"></div>
+          <div className="h-1 w-16 md:h-1.5 md:w-24 bg-blue-500 rounded-full mb-6 md:mb-8 mx-auto lg:mx-0"></div>
           
-          <h2 className="text-2xl font-bold text-slate-200 mb-6 tracking-tight">
+          <h2 className="text-lg md:text-2xl font-bold text-slate-200 mb-4 md:mb-6 tracking-tight">
             Monitoring Administrasi & Data Pegawai
           </h2>
           
-          <p className="text-lg text-slate-400 max-w-md mb-10 leading-relaxed font-medium">
-            Sistem monitoring administrasi & data pegawai RSUD Drs. H. Amri Tambunan untuk pengelolaan data ASN yang akurat, transparan, dan tepat waktu.
+          <p className="text-sm md:text-lg text-slate-400 max-w-md mb-8 md:mb-10 leading-relaxed font-medium mx-auto lg:mx-0">
+            Sistem pengelolaan data ASN RSUD Drs. H. Amri Tambunan yang akurat, transparan, dan terintegrasi.
           </p>
 
-          <div className="grid grid-cols-2 gap-4 mt-8 md:mt-0">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4 mt-4 lg:mt-0">
             {[
               "Kenaikan Pangkat",
               "Pensiun",
@@ -2941,11 +2941,11 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
               "SKP",
               "Dokumen Pegawai"
             ].map((feature) => (
-              <div key={feature} className="flex items-center gap-3 px-4 py-3 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-sm group hover:bg-white/10 transition-all duration-300">
-                <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
-                  <CheckCircle2 className="w-4 h-4" />
+              <div key={feature} className="flex items-center gap-2 md:gap-3 px-3 py-2 md:px-4 md:py-3 bg-white/5 border border-white/10 rounded-xl md:rounded-2xl backdrop-blur-sm group hover:bg-white/10 transition-all duration-300">
+                <div className="w-6 h-6 md:w-8 md:h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                  <CheckCircle2 className="w-3 h-3 md:w-4 md:h-4" />
                 </div>
-                <span className="text-xs font-bold text-slate-300 tracking-wide">{feature}</span>
+                <span className="text-[10px] md:text-xs font-bold text-slate-300 tracking-wide">{feature}</span>
               </div>
             ))}
           </div>
@@ -2953,61 +2953,61 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
 
         {/* Login Card */}
         <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.2 }}
           className="w-full max-w-[460px]"
         >
           <div className="relative group">
             {/* Card Glow Effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[3rem] blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-[2rem] md:rounded-[3rem] blur opacity-10 md:opacity-25 group-hover:opacity-40 transition duration-1000"></div>
             
-            <div className="relative bg-white/[0.03] backdrop-blur-3xl p-10 md:p-14 rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden">
+            <div className="relative bg-white/[0.03] backdrop-blur-3xl p-8 md:p-14 rounded-[2rem] md:rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden">
               {/* Inner Decorative Circle */}
               <div className="absolute top-[-100px] right-[-100px] w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-              <div className="mb-12 relative">
-                <h3 className="text-4xl font-black text-white mb-3 tracking-tight">Sign In</h3>
-                <p className="text-slate-400 text-sm font-semibold">Selamat datang kembali! Silahkan masuk ke dashboard anda.</p>
+              <div className="mb-8 md:mb-12 relative text-center md:text-left">
+                <h3 className="text-3xl md:text-4xl font-black text-white mb-2 md:mb-3 tracking-tight">Sign In</h3>
+                <p className="text-slate-400 text-xs md:text-sm font-semibold">Selamat datang kembali! Silahkan masuk ke dashboard anda.</p>
               </div>
 
-              <form onSubmit={handleSubmit(onLogin)} className="space-y-8">
-                <div className="space-y-3">
-                  <label className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] ml-1">Account Email</label>
+              <form onSubmit={handleSubmit(onLogin)} className="space-y-6 md:space-y-8">
+                <div className="space-y-2 md:space-y-3">
+                  <label className="text-[10px] md:text-[11px] font-black text-blue-400 uppercase tracking-[0.2em] ml-1">Account Email</label>
                   <div className="relative group/input">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-500 group-focus-within/input:text-blue-400 group-focus-within/input:bg-blue-500/10 transition-all">
-                      <User className="w-5 h-5" />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl bg-white/5 text-slate-500 group-focus-within/input:text-blue-400 group-focus-within/input:bg-blue-500/10 transition-all">
+                      <User className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <input 
                       type="email"
                       {...register('email', { required: 'Email is required' })}
-                      className="w-full pl-16 pr-6 py-5 bg-white/[0.02] border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-semibold placeholder:text-slate-700 shadow-inner"
-                      placeholder="Enter your registered email"
+                      className="w-full pl-14 md:pl-16 pr-4 md:pr-6 py-3.5 md:py-5 bg-white/[0.02] border border-white/10 rounded-xl md:rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-semibold text-sm md:text-base placeholder:text-slate-700 shadow-inner"
+                      placeholder="Enter your email"
                     />
                     {errors.email && (
-                      <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="absolute -bottom-6 left-1 text-[10px] text-red-500 font-bold uppercase tracking-wide">
+                      <motion.span initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute -bottom-5 left-1 text-[9px] md:text-[10px] text-red-500 font-bold uppercase tracking-wide">
                         {errors.email.message as string}
                       </motion.span>
                     )}
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2 md:space-y-3">
                   <div className="flex justify-between items-center px-1">
-                    <label className="text-[11px] font-black text-blue-400 uppercase tracking-[0.2em]">Secret Password</label>
+                    <label className="text-[10px] md:text-[11px] font-black text-blue-400 uppercase tracking-[0.2em]">Secret Password</label>
                   </div>
                   <div className="relative group/input">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-xl bg-white/5 text-slate-500 group-focus-within/input:text-blue-400 group-focus-within/input:bg-blue-500/10 transition-all">
-                      <ShieldCheck className="w-5 h-5" />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 md:w-10 md:h-10 flex items-center justify-center rounded-lg md:rounded-xl bg-white/5 text-slate-500 group-focus-within/input:text-blue-400 group-focus-within/input:bg-blue-500/10 transition-all">
+                      <ShieldCheck className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
                     <input 
                       type="password"
                       {...register('password', { required: 'Password is required' })}
-                      className="w-full pl-16 pr-6 py-5 bg-white/[0.02] border border-white/10 rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-semibold placeholder:text-slate-700 shadow-inner"
+                      className="w-full pl-14 md:pl-16 pr-4 md:pr-6 py-3.5 md:py-5 bg-white/[0.02] border border-white/10 rounded-xl md:rounded-2xl text-white outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all font-semibold text-sm md:text-base placeholder:text-slate-700 shadow-inner"
                       placeholder="••••••••••••"
                     />
                     {errors.password && (
-                      <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="absolute -bottom-6 left-1 text-[10px] text-red-500 font-bold uppercase tracking-wide">
+                      <motion.span initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="absolute -bottom-5 left-1 text-[9px] md:text-[10px] text-red-500 font-bold uppercase tracking-wide">
                         {errors.password.message as string}
                       </motion.span>
                     )}
@@ -3018,25 +3018,25 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
                   <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-4 p-5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-3xl"
+                    className="flex items-center gap-3 md:gap-4 p-4 md:p-5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl md:rounded-3xl"
                   >
-                    <AlertCircle className="w-6 h-6 shrink-0" />
-                    <p className="text-[11px] font-black uppercase tracking-wider">{error}</p>
+                    <AlertCircle className="w-5 h-5 md:w-6 md:h-6 shrink-0" />
+                    <p className="text-[9px] md:text-[11px] font-black uppercase tracking-wider">{error}</p>
                   </motion.div>
                 )}
 
                 <button 
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-3xl font-black shadow-[0_15px_40px_rgba(37,99,235,0.4)] hover:shadow-blue-500/60 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-xs relative overflow-hidden"
+                  className="w-full py-5 md:py-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl md:rounded-3xl font-black shadow-lg md:shadow-[0_15px_40px_rgba(37,99,235,0.4)] hover:shadow-blue-500/60 transition-all flex items-center justify-center gap-2 md:gap-3 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-[0.2em] text-[10px] md:text-xs relative overflow-hidden"
                 >
                   <div className="absolute inset-x-0 top-0 h-[1px] bg-white/20"></div>
                   {isLoading ? (
-                    <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 md:w-6 md:h-6 border-2 md:border-3 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
                       Authenticated Access
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
                     </>
                   )}
                 </button>
@@ -3047,9 +3047,9 @@ const LoginPage = ({ onLogin, isLoading, error }: any) => {
       </div>
 
       {/* Corporate Footer */}
-      <div className="absolute bottom-10 inset-x-0 z-10 text-center">
-        <p className="text-slate-500/50 text-[10px] font-black tracking-[0.4em] uppercase">
-          &copy; 2026 RSUD Drs. H. Amri Tambunan &bull; Internal Systems Division
+      <div className="absolute bottom-6 md:bottom-10 inset-x-0 z-10 text-center px-4">
+        <p className="text-slate-500/50 text-[8px] md:text-[10px] font-black tracking-[0.2em] md:tracking-[0.4em] uppercase leading-relaxed">
+          &copy; 2026 RSUD Drs. H. Amri Tambunan <br className="md:hidden" /> <span className="hidden md:inline">&bull;</span> Internal Systems Division
         </p>
       </div>
     </div>
